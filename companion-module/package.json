@@ -1,0 +1,28 @@
+{
+	"name": "companion-module-streaming-timer-sync",
+	"version": "2.0.0",
+	"main": "dist/main.js",
+	"type": "module",
+	"scripts": {
+		"format": "prettier -w .",
+		"package": "npm run build && companion-module-build",
+		"build": "rimraf dist && npm run build:main",
+		"build:main": "tsc -p tsconfig.build.json",
+		"dev": "tsc -p tsconfig.build.json --watch"
+	},
+	"license": "MIT",
+	"engines": {
+		"node": "^22.20"
+	},
+	"dependencies": {
+		"@companion-module/base": "~1.14.1"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "^2.5.0",
+		"@types/node": "^22.19.3",
+		"prettier": "^3.7.4",
+		"rimraf": "^6.1.2",
+		"typescript": "~5.9.3"
+	},
+	"prettier": "@companion-module/tools/.prettierrc.json"
+}

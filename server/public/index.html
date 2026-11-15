@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<title>Streaming Timer Sync</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="app">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs><style>.ic{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}</style></defs>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="9"/><path class="ic" d="M12 7v5l3 2"/></symbol>
+<symbol id="i-campus" viewBox="0 0 24 24"><path class="ic" d="M3 20h18M5 20V10l7-5 7 5v10"/><path class="ic" d="M10 20v-5h4v5"/></symbol>
+<symbol id="i-timer" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="13.5" r="7.5"/><path class="ic" d="M12 13.5V9.5M9.5 2.5h5M19 6l-1.5 1.5"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24"><path class="ic" d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.4 1.4 0 0 1 0 2l-6.3 6.3a1.4 1.4 0 0 1-2 0z"/><circle class="ic" cx="8" cy="8" r="1.3"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect class="ic" x="5" y="10.5" width="14" height="10" rx="1.5"/><path class="ic" d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="i-pulse" viewBox="0 0 24 24"><path class="ic" d="M3 12h4l2.5-6 5 12 2.5-6h4"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path class="ic" d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path class="ic" d="M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 4h18v4H3zM10 12h4"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path class="ic" d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24"><path class="ic" d="M3 3l18 18M10.6 6.1A9.6 9.6 0 0 1 12 6c5 0 8.5 4.5 9.5 6a15 15 0 0 1-2.9 3.4M6.4 7.5A15 15 0 0 0 2.5 12c1 1.5 4.5 6 9.5 6a9 9 0 0 0 4-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect class="ic" x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect class="ic" x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect class="ic" x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect class="ic" x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="3"/><path class="ic" d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path class="ic" d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-sync" viewBox="0 0 24 24"><path class="ic" d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path class="ic" d="M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Main">
+  <a href="#live" class="brand"><img src="logo.svg" alt=""><span>Streaming Timer Sync</span></a>
+  <div id="conn" class="conn" role="status"><span>Connecting…</span></div>
+  <div class="views">
+    <a href="#live" class="view" data-view="live"><svg class="i"><use href="#i-clock"/></svg><span>Live</span></a>
+    <a href="#companion" class="view" data-view="companion"><svg class="i"><use href="#i-grid"/></svg><span>Companion</span></a>
+    <div class="nav-group">Configure</div>
+    <a href="#venues" class="view" data-view="venues"><svg class="i"><use href="#i-campus"/></svg><span>Venues</span></a>
+    <a href="#show" class="view" data-view="show"><svg class="i"><use href="#i-timer"/></svg><span>Cues</span></a>
+    <div class="nav-group">System</div>
+    <a href="#settings" class="view" data-view="settings"><svg class="i"><use href="#i-gear"/></svg><span>Settings</span></a>
+    <a href="#diagnostics" class="view" data-view="diagnostics"><svg class="i"><use href="#i-pulse"/></svg><span>Diagnostics</span></a>
+  </div>
+  <div id="version" class="version" title="Running version"></div>
+</nav>
+
+<main class="main" id="main">
+
+<!-- ================= Live ================= -->
+<section class="page" data-page="live">
+  <div class="page-head"><div>
+    <h1 class="page-title">Live</h1>
+    <p class="page-lede">Each venue's clock, as its stage display shows it right now.</p>
+  </div>
+  <span class="actions"><button id="reload-screens" class="btn" title="Load the stage display page again on every screen showing it"><svg class="i"><use href="#i-sync"/></svg><span>Reload all screens</span></button>
+  <button id="blackout-all" class="btn danger-solid" aria-pressed="false"><svg class="i"><use href="#i-eye-off"/></svg><span>Black out all screens</span></button></span></div>
+  <div id="blackout-banner" class="alert blackout-banner" role="status" hidden><b>All stage displays are black.</b> Companion variables still update. <button id="blackout-all-off" class="btn small strong">Bring screens back</button></div>
+  <div id="live-grid" class="timers"></div>
+  <p id="live-empty" class="empty" hidden>No venues yet. <a href="#venues">Add your first venue</a> to start a timer.</p>
+</section>
+
+<!-- ================= Companion ================= -->
+<section class="page" data-page="companion" hidden>
+  <div class="page-head"><div>
+    <h1 class="page-title">Companion</h1>
+    <p class="page-lede">The variables each venue sends to Companion, with their values right now.</p>
+    <p class="page-lede">Install the Streaming Timer Sync module in Companion and add a connection with this server's address. If you renamed the connection, use its label in place of <code>streaming-timer-sync</code>.
+      A venue whose Companion has no module can be sent custom variables instead (<a href="#venues">Venues</a> → Edit → Advanced).</p>
+  </div></div>
+  <div id="companion-grid" class="timers"></div>
+  <p id="companion-empty" class="empty" hidden>No venues yet. <a href="#venues">Add a venue</a> to get its variables.</p>
+</section>
+
+<!-- ================= Venues ================= -->
+<section class="page" data-page="venues" hidden>
+  <div class="page-head"><div>
+    <h1 class="page-title">Venues</h1>
+    <p class="page-lede">Each venue follows its own decoder, so it can be live, delayed, or on a different event. The order here is the order on the Live page.</p>
+  </div>
+  <button id="add-campus" class="btn primary"><svg class="i"><use href="#i-plus"/></svg><span>Add venue</span></button></div>
+
+  <div class="stack wide">
+    <form id="campus-form" class="card accent form" hidden>
+      <div class="card-head"><h2 id="campus-form-title">New venue</h2></div>
+      <input type="hidden" name="campusId">
+      <div class="row2">
+        <label>Venue name<input name="campusName" required placeholder="Main Auditorium"></label>
+        <label>Companion variable key<input name="slug" placeholder="Made from the name">
+          <span class="hint">Used in <code id="slug-preview">$(streaming-timer-sync:main_auditorium_remaining)</code></span></label>
+      </div>
+      <label class="check"><input type="checkbox" name="enabled" checked>Timer on</label>
+
+      <h3 class="subhead">Decoders</h3>
+      <p class="note">Tick every decoder at this venue. If there's a backup, the one that's playing wins.</p>
+      <div id="decoder-choices" class="choices"></div>
+
+      <h3 class="subhead">Countdown</h3>
+      <p class="note">Leave these blank to use the <a href="#show">Cues</a> page. Change them only for a venue that times something different.</p>
+      <div class="row2">
+        <label>Start the clock at<select name="startCue"></select></label>
+        <label>Default estimated length<input name="sermonMinutes" inputmode="decimal" autocomplete="off" pattern="\d+(:[0-5]\d){0,2}" title="Estimated length: minutes (45), minutes:seconds (5:30) or hours:minutes:seconds (1:05:00)">
+          <span class="hint">Replaces the default for this venue; cues with their own length keep it. Minutes (45), m:ss (5:30) or h:mm:ss (1:05:00).</span></label>
+      </div>
+      <div><label>Count down to</label><div id="target-choices" class="choices" style="margin-top:8px"></div>
+        <span class="hint">None ticked uses the default targets.</span></div>
+      <div class="row2">
+        <label>Clock offset (seconds)<input name="positionOffsetSec" type="number" step="0.5">
+          <span class="hint">If this venue's clock shows a few seconds too much time left, enter a positive number: <b>+2</b> takes 2 seconds off. <b>−2</b> adds 2. Blank uses the default.</span></label>
+      </div>
+
+      <details>
+        <summary>Advanced</summary>
+        <div class="form">
+          <h3 class="subhead">Push to Companion (no module)</h3>
+          <p class="note">Only if this venue's Companion doesn't have the Streaming Timer Sync module. Create these custom variables in Companion first.</p>
+          <div class="row2">
+            <label>Companion URL<input name="companionUrl" placeholder="http://192.168.1.50:8000"></label>
+            <label>Variable prefix<input name="variablePrefix" placeholder="resi_timer"></label>
+          </div>
+          <p class="hint" id="push-vars"></p>
+        </div>
+      </details>
+
+      <div class="actions"><button type="submit" class="btn strong">Save venue</button>
+        <button type="button" id="cancel-campus" class="btn ghost">Cancel</button>
+        <span style="flex:1"></span>
+        <button type="button" id="delete-campus" class="btn ghost danger">Delete venue</button></div>
+    </form>
+
+    <section class="card">
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th><span class="sr-only">Order</span></th><th>Venue</th><th>Decoders</th><th>Countdown</th><th>Companion</th><th></th></tr></thead>
+        <tbody id="campus-rows"></tbody>
+      </table></div>
+    </section>
+  </div>
+</section>
+
+<!-- ================= Cues ================= -->
+<section class="page" data-page="show" hidden>
+  <div class="page-head"><div>
+    <h1 class="page-title">Cues</h1>
+    <p class="page-lede">Your run of show: the cues in the order your service runs. The clock starts at one of them and counts down to the ones after it, each expected when the element before it ends.</p>
+  </div></div>
+  <form id="show-form" class="stack wide" data-settings>
+    <p id="show-summary" class="summary"></p>
+
+    <section class="card form">
+      <div class="card-head"><h2>Cues</h2>
+        <span class="actions"><button type="button" id="sort-types" class="btn small ghost" title="Put the cues in the order they happen in the loaded events">Order like the loaded service</button>
+        <button type="button" id="add-type" class="btn small"><svg class="i"><use href="#i-plus"/></svg><span>Add cue</span></button></span></div>
+      <div class="show-list" id="type-list" role="list" aria-label="Cues in service order"></div>
+      <div class="row2 show-defaults">
+        <label>Default estimated length<input name="defaultSermonMinutes" data-duration inputmode="decimal" autocomplete="off" required pattern="\d+(:[0-5]\d){0,2}" title="Estimated length: minutes (45), minutes:seconds (5:30) or hours:minutes:seconds (1:05:00)">
+          <span class="hint">For any counted cue without its own. Minutes (45), m:ss (5:30) or h:mm:ss (1:05:00).</span></label>
+      </div>
+      <ul class="hint-list">
+        <li>Drag <span class="grip-inline" aria-hidden="true"></span> to put the cues in service order. With the handle focused, the arrow keys move a cue too.</li>
+        <li>A cue matches when its name contains every word of one of its phrases, in any order, and none of its exclude words. The service prefix (<code>9AM //</code>, <code>11:15 -</code>) is set aside first.</li>
+        <li><b>Est. length</b> is how long that element usually runs: minutes (45), m:ss (5:30) or h:mm:ss (1:05:00). Each cue is expected when the one before it ends.</li>
+        <li>A real cue always replaces its estimate. With no cue yet, the clock runs over (−1:05) instead of moving on.</li>
+      </ul>
+    </section>
+
+    <section class="card form">
+      <div class="card-head"><div><h2>Cues in loaded events</h2>
+        <p id="cue-preview-sub" class="hint" style="margin:2px 0 0"></p></div>
+        <button type="button" id="rescan" class="btn small"><svg class="i"><use href="#i-sync"/></svg><span>Rescan Resi</span></button></div>
+      <div id="cue-preview" class="cue-preview"></div>
+    </section>
+
+    <section class="card form">
+      <div class="card-head"><h2>Try a cue name</h2></div>
+      <div class="tester">
+        <input id="cue-test" placeholder="9:30AM // Message Start" autocomplete="off" aria-label="Cue name to test">
+        <div id="cue-test-result" class="tester-result" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card form">
+      <details>
+        <summary>Matching</summary>
+        <div class="form">
+          <div class="row2">
+            <label>How strictly to match<select name="cues.matchMode">
+              <option value="smart">Forgiving: any word order, synonyms, small typos</option>
+              <option value="contains">Contains the phrase exactly</option>
+              <option value="exact">Whole name equals the phrase</option>
+            </select></label>
+          </div>
+          <label>Words that mean the same thing<textarea id="synonyms" rows="6" aria-label="Synonym groups"></textarea>
+            <span class="hint">One group per line, separated by commas. In forgiving mode, any word in a group matches the others.</span></label>
+        </div>
+      </details>
+    </section>
+
+    <div class="actions sticky"><button class="btn strong">Save cues</button></div>
+  </form>
+</section>
+
+<!-- ================= Settings ================= -->
+<section class="page" data-page="settings" hidden>
+  <div class="page-head"><div>
+    <h1 class="page-title">Settings</h1>
+    <p class="page-lede">The Resi login, defaults for every stage display, and a backup of your setup.</p>
+  </div></div>
+  <div class="stack wide">
+    <form id="connection-form" class="card form" data-settings>
+      <div class="card-head"><div><h2>Resi login</h2><p id="login-detail" class="hint" style="margin:2px 0 0"></p></div><span id="login-tag" class="tag"></span></div>
+      <p class="note">One Resi Studio login reads every venue's decoder and every event's cues. Use a login for studio.resi.io without two-factor sign-in; a dedicated user works best.</p>
+      <div class="row2">
+        <label>Email<input name="resi.email" autocomplete="off"></label>
+        <label>Password<input name="resi.password" type="password" autocomplete="new-password"></label>
+        <label>Customer ID (optional)<input name="resi.customerId" placeholder="Found automatically from your login">
+          <span class="hint">Only needed if your login can see more than one organization.</span></label>
+      </div>
+      <div class="actions"><button class="btn strong">Save login</button></div>
+    </form>
+
+    <form id="defaults-form" class="card form" data-settings>
+      <div class="card-head"><h2>Stage displays</h2></div>
+      <div class="row2">
+        <label>Before the start cue<input name="display.idleText" placeholder="Blank">
+          <span class="hint">Also shown once the last cue has passed.</span></label>
+        <label>When a cue is reached<input name="display.endedText" placeholder="0:00"></label>
+        <label>Keep that for (min)<input name="display.endedHoldMinutes" type="number" min="0">
+          <span class="hint">Or until the decoder has been stopped that long.</span></label>
+      </div>
+      <label class="check"><input type="checkbox" name="display.showOvertime">Count past an estimate as negative (−1:05) instead of holding 0:00</label>
+      <h3 class="subhead">Clock offset</h3>
+      <div class="row2">
+        <label>Default clock offset (seconds)<input name="positionOffsetSec" type="number" step="0.5">
+          <span class="hint">Resi reports the playhead a little late. <b>+2</b> takes 2 seconds off every clock; <b>−2</b> adds 2. Each venue can set its own, or nudge it on the Live page.</span></label>
+      </div>
+      <div class="actions"><button class="btn strong">Save stage displays</button></div>
+    </form>
+
+    <section class="card form">
+      <div class="card-head"><div><h2>Backup</h2><p class="hint" style="margin:2px 0 0">Save your normal setup before a special event, then import it afterwards to put everything back.</p></div></div>
+      <div class="backup-grid">
+        <div>
+          <h3 class="subhead">Download</h3>
+          <p class="note">Cue names, countdown, display settings and venues in one file. The Resi login and blackout aren't included.</p>
+          <div class="actions"><a class="btn" href="api/config/export" download><svg class="i"><use href="#i-down"/></svg><span>Download setup</span></a></div>
+        </div>
+        <form id="import-form" class="form">
+          <h3 class="subhead">Import</h3>
+          <label>Setup file<input id="import-file" type="file" accept=".json,application/json"></label>
+          <div id="import-preview" class="summary" hidden></div>
+          <div id="import-parts" class="choices" hidden>
+            <label class="check"><input type="checkbox" name="part" value="settings" checked><span>Cue names, countdown and display settings<span class="sub">Replaces what's on those pages</span></span></label>
+            <label class="check"><input type="checkbox" name="part" value="campuses" checked><span>Venues<span class="sub">Decoders, overrides, offsets and Companion push</span></span></label>
+          </div>
+          <div class="actions"><button id="import-go" class="btn strong" disabled>Import</button></div>
+          <p class="hint" style="margin:0">Your current setup is kept, so you can undo the import.</p>
+        </form>
+      </div>
+      <div id="undo-card" class="undo" hidden>
+        <h3 class="subhead">Undo last import</h3>
+        <p id="undo-text" class="note"></p>
+        <div class="actions"><button id="undo-go" class="btn strong">Undo import</button>
+          <button id="undo-download" class="btn ghost"><svg class="i"><use href="#i-down"/></svg><span>Download the earlier setup</span></button></div>
+      </div>
+    </section>
+
+    <form id="advanced-form" class="card form" data-settings>
+      <details>
+        <summary>Advanced</summary>
+        <div class="form">
+          <div class="row2">
+            <label>Check decoders every (ms)<input name="polling.decoderIntervalMs" type="number" min="1000"></label>
+            <label>Check cues every (ms)<input name="polling.cueIntervalMs" type="number" min="2000"></label>
+          </div>
+          <label>Cue URL template<input name="resi.cueUrlTemplate" placeholder="https://central.resi.io/api_v2.svc/streamprofiles/PROFILE-ID/events/{eventId}/cues">
+            <span class="hint">Leave blank. Only needed if Diagnostics shows cues can't be found.</span></label>
+          <label>Manual token<input name="resi.manualToken" type="password" autocomplete="off">
+            <span class="hint">Testing only. Expires in about an hour and is used only when no password is set.</span></label>
+          <div class="row2">
+            <label>Central base<input name="resi.centralBase"></label>
+            <label>Studio origin<input name="resi.studioOrigin"></label>
+          </div>
+          <div class="actions"><button class="btn strong">Save advanced</button></div>
+        </div>
+      </details>
+    </form>
+  </div>
+</section>
+
+<!-- ================= Diagnostics ================= -->
+<section class="page" data-page="diagnostics" hidden>
+  <div class="page-head"><div>
+    <h1 class="page-title">Diagnostics</h1>
+    <p class="page-lede">Everything the server sees from Resi, refreshed every few seconds.</p>
+  </div>
+  <button id="rediscover" class="btn"><svg class="i"><use href="#i-sync"/></svg><span>Find cues again</span></button></div>
+
+  <div class="stack wide">
+    <section id="diag-status" class="card form"></section>
+    <section class="card form"><h2>Decoders</h2>
+      <div class="table-wrap"><table class="table compact">
+        <thead><tr><th>Decoder</th><th>Status</th><th>Playhead</th><th>Event</th><th>Last report</th></tr></thead>
+        <tbody id="diag-decoders"></tbody></table></div></section>
+    <div id="diag-events" class="stack"></div>
+    <section class="card form"><h2>Log</h2><pre id="diag-logs" class="log"></pre></section>
+    <section class="card form"><details><summary>Cue discovery</summary><pre id="diag-discovery" class="log"></pre></details></section>
+  </div>
+</section>
+
+</main>
+<div id="flash" class="flash out" role="status" aria-live="polite"></div>
+<script src="app.js" type="module"></script>
+</body>
+</html>

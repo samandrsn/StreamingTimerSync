@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Timer</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<style>
+/* Stage display for a ProPresenter web element. Options: ?bg=transparent  ?header=0  ?footer=0 */
+:root {
+  --bg: #000;
+  --text: #F4F5F7;
+  --dim: #8A929D;
+  --known: #1F7A47;
+  --estimate: #F2B33D;
+  --estimate-ink: #1E1A0F;
+  --over: #FF6B6B;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+body.transparent { --bg: transparent; }
+.d { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; padding: 3vh 3.5vw; gap: 1vh; }
+header, footer { display: flex; align-items: center; gap: 2vw; min-height: 0; }
+header { justify-content: space-between; font-size: max(14px, 4.2vh); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+.who { display: flex; gap: 1.2em; min-width: 0; white-space: nowrap; overflow: hidden; }
+.who .service { color: var(--dim); }
+.badge { flex: none; padding: .25em .7em; border-radius: .3em; font-size: .9em; letter-spacing: .1em; border: .12em solid transparent; }
+.badge:empty { display: none; }
+.badge.known { background: var(--known); }
+.badge.estimate { background: var(--estimate); color: var(--estimate-ink); }
+.badge.over { background: var(--over); color: #2A0F0C; }
+.badge.quiet { border-color: #3A3F47; color: var(--dim); }
+.clock { display: flex; align-items: center; justify-content: center; min-height: 0; font-weight: 600; line-height: 1; letter-spacing: -.02em; font-size: var(--size, 30vw); white-space: nowrap; }
+.clock .tilde { font-size: .55em; margin-right: .08em; opacity: .9; }
+footer { display: block; text-align: center; font-size: max(16px, 6vh); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+footer b { color: var(--text); font-weight: 600; }
+
+[data-kind="estimate"] .clock { color: var(--estimate); }
+[data-kind="over"] .clock { color: var(--over); }
+[data-kind="ended"] .clock, [data-kind="idle"] .clock { color: var(--dim); }
+[data-kind="idle"] .clock { font-size: min(7vw, 12vh); letter-spacing: .04em; font-weight: 400; }
+body.no-header header, body.no-footer footer { display: none; }
+.lost { position: fixed; right: 1.2vw; bottom: 1.2vh; font-size: max(11px, 2vh); color: var(--over); opacity: .8; display: none; }
+.lost.on { display: block; }
+/* Blackout from the dashboard: nothing on screen at all. */
+body.blackout .d, body.blackout .lost { visibility: hidden; }
+</style>
+</head>
+<body>
+<main class="d" data-kind="idle">
+  <header><div class="who"><span id="campus"></span><span id="service" class="service"></span></div><span id="badge" class="badge"></span></header>
+  <div id="clock" class="clock">Connecting…</div>
+  <footer id="detail"></footer>
+</main>
+<div id="lost" class="lost">● Reconnecting</div>
+<script>
+const [, slug, targetKey] = location.pathname.match(/^\/([a-z0-9_]+)(?:\/([a-z0-9_]+))?/) || []
+const params = new URLSearchParams(location.search)
+if (params.get('bg') === 'transparent') document.body.classList.add('transparent')
+if (params.get('header') === '0') document.body.classList.add('no-header')
+if (params.get('footer') === '0') document.body.classList.add('no-footer')
+
+const $ = (id) => document.getElementById(id)
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const main = document.querySelector('.d')
+let last = ''
+
+function fit(text) {
+  // Big as the box allows: ~0.62em per character, capped by height.
+  const chars = Math.max(4, text.length)
+  const size = `min(${(80 / (chars * 0.62)).toFixed(1)}vw, ${document.body.classList.contains('no-header') ? 64 : 54}vh)`
+  if (main.style.getPropertyValue('--size') !== size) main.style.setProperty('--size', size)
+}
+
+function render(timer) {
+  document.body.classList.toggle('blackout', !!timer?.blackout)
+  if (!timer) {
+    main.dataset.kind = 'idle'
+    $('clock').textContent = 'Venue not found'
+    $('campus').textContent = slug
+    $('badge').textContent = ''
+    $('detail').textContent = ''
+    return
+  }
+  const t = targetKey ? timer.targets?.find((x) => x.key === targetKey) : timer
+  if (!t) {
+    main.dataset.kind = 'idle'
+    $('clock').textContent = `No “${targetKey}” countdown`
+    return
+  }
+  const names = targetKey ? [t.name] : timer.endCues
+  const until = names.join(' or ')
+  const start = timer.startCue
+
+  let kind, clock, badge, badgeClass, detail
+  switch (t.state) {
+    case 'counting':
+    case 'overtime':
+      if (t.estimated) {
+        kind = t.state === 'overtime' ? 'over' : 'estimate'
+        badge = t.state === 'overtime' ? 'Over estimate' : 'Estimate'
+        badgeClass = t.state === 'overtime' ? 'over' : 'estimate'
+        const what = targetKey ? t.name : timer.targetType || until
+        // The badge and ~ already say it's an estimate; the dashboard shows how it was worked out.
+        detail = `No <b>${esc(what)}</b> cue yet`
+      } else {
+        kind = t.state === 'overtime' ? 'over' : 'known'
+        badge = 'Cue'
+        badgeClass = 'known'
+        detail = `Until <b>${esc(t.targetCueName)}</b>`
+      }
+      clock = t.display
+      break
+    case 'ended':
+      kind = 'ended'
+      clock = t.display || '0:00'
+      badge = 'Done'
+      badgeClass = 'quiet'
+      detail = `<b>${esc(t.targetCueName || until)}</b> reached`
+      break
+    case 'waiting':
+      kind = 'idle'
+      clock = t.display || `Waiting for ${start}`
+      badge = ''
+      detail = ''
+      break
+    case 'no_cues':
+      kind = 'idle'; clock = 'Loading cues…'; badge = ''; detail = ''
+      break
+    case 'no_event':
+      kind = 'idle'; clock = 'No event loaded'; badge = ''; detail = ''
+      break
+    default:
+      kind = 'idle'; clock = 'Decoder offline'; badge = ''; detail = ''
+  }
+
+  const key = [kind, clock, badge, detail, timer.campusName, timer.service].join('|')
+  if (key === last) return
+  last = key
+  main.dataset.kind = kind
+  $('campus').textContent = timer.campusName
+  $('service').textContent = ['counting', 'overtime', 'ended'].includes(t.state) ? timer.service : ''
+  $('badge').textContent = badge
+  $('badge').className = `badge ${badgeClass ?? ''}`
+  $('detail').innerHTML = detail
+  if (kind === 'estimate') $('clock').innerHTML = `<span class="tilde">~</span>${esc(clock)}`
+  else $('clock').textContent = clock
+  if (kind !== 'idle') fit(clock + (kind === 'estimate' ? '~' : ''))
+  document.title = `${timer.campusName} timer`
+}
+
+// Hold the last frame through dropped connections and page reloads, and keep
+// counting locally from the last known time so the clock never blanks or jumps.
+const CACHE_KEY = `timer:${slug}`
+const MAX_COAST_SEC = 300
+let lastTimer = null
+let lastAt = 0
+
+function pad(n) { return String(n).padStart(2, '0') }
+function formatClock(sec) {
+  const neg = sec < 0
+  const s = Math.abs(Math.round(sec))
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60)
+  const body = h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`
+  return neg ? `-${body}` : body
+}
+function coast(t, elapsed) {
+  if (!t || !['counting', 'overtime'].includes(t.state) || !Number.isFinite(t.remainingSeconds)) return t
+  const remainingSeconds = t.remainingSeconds - elapsed
+  return { ...t, remainingSeconds, state: remainingSeconds < 0 ? 'overtime' : t.state, display: formatClock(remainingSeconds) }
+}
+function coasted(timer, elapsed) {
+  if (!timer || elapsed < 1) return timer
+  return { ...coast(timer, elapsed), targets: timer.targets?.map((x) => coast(x, elapsed)) }
+}
+
+function accept(timer, at) {
+  lastTimer = timer
+  lastAt = at
+  render(timer)
+}
+
+try {
+  const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')
+  if (cached?.timer) {
+    lastTimer = cached.timer
+    lastAt = cached.at
+    render(coasted(cached.timer, Math.min(MAX_COAST_SEC, (Date.now() - cached.at) / 1000)))
+  }
+} catch {}
+
+let saved = 0
+let reloadKey = null
+function connect() {
+  const es = new EventSource(`/api/stream?display=${encodeURIComponent(slug)}`)
+  es.onmessage = (e) => {
+    const data = JSON.parse(e.data)
+    const timer = data.timers.find((t) => t.slug === slug)
+    const now = Date.now()
+    // The server was updated or restarted, or someone pressed "Reload all screens":
+    // keep the current frame and load the page again. Spread out so screens don't all hit at once.
+    // The whole server (update, restart, "Reload all screens") or just this venue ("Reload" on its Live card).
+    const key = data.reload ? `${data.reload}|${data.reloads?.[slug] ?? ''}` : null
+    if (key && reloadKey && key !== reloadKey) {
+      es.close()
+      try { if (timer) localStorage.setItem(CACHE_KEY, JSON.stringify({ timer, at: now })) } catch {}
+      setTimeout(() => location.reload(), 300 + Math.random() * 1500)
+      return
+    }
+    reloadKey = key ?? reloadKey
+    $('lost').classList.remove('on')
+    accept(timer, now)
+    if (timer && now - saved > 2000) {
+      saved = now
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ timer, at: now })) } catch {}
+    }
+  }
+}
+connect()
+
+setInterval(() => {
+  const elapsed = (Date.now() - lastAt) / 1000
+  if (!lastTimer || elapsed < 1.5) return
+  render(coasted(lastTimer, Math.min(MAX_COAST_SEC, elapsed)))
+  $('lost').classList.toggle('on', elapsed > 10)
+}, 250)
+</script>
+</body>
+</html>

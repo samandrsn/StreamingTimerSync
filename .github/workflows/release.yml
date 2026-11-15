@@ -1,0 +1,38 @@
+# On a version tag (v1.2.3): build the macOS app and the Companion module and attach them to a GitHub release.
+# Run it by hand to (re)build the release for the version in server/package.json.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+        working-directory: server
+      - name: Check the tag matches the version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./server/package.json').version")"
+      - name: Build macOS app
+        run: macos/build.sh
+      - name: Build Companion module
+        working-directory: companion-module
+        run: npm install --no-audit --no-fund && npm run package
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then TAG="$GITHUB_REF_NAME"; else TAG="v$(node -p "require('./server/package.json').version")"; fi
+          gh release create "$TAG" dist/*.dmg dist/*.zip companion-module/*.tgz \
+            --title "Streaming Timer Sync ${TAG#v}" --generate-notes || \
+          gh release upload "$TAG" dist/*.dmg dist/*.zip companion-module/*.tgz --clobber

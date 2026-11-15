@@ -1,0 +1,35 @@
+{
+	"id": "streaming-timer-sync",
+	"name": "Streaming Timer Sync",
+	"shortname": "streaming-timer-sync",
+	"description": "Per-campus stage countdowns from a Streaming Timer Sync server (Resi decoder playback + event cues)",
+	"version": "2.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/samandrsn/StreamingTimerSync.git",
+	"bugs": "https://github.com/samandrsn/StreamingTimerSync/issues",
+	"maintainers": [
+		{
+			"name": "Streaming Timer Sync"
+		}
+	],
+	"runtime": {
+		"type": "node22",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.12.0",
+		"entrypoint": "../dist/main.js"
+	},
+	"manufacturer": "Streaming Timer Sync",
+	"products": [
+		"Streaming Timer Sync"
+	],
+	"keywords": [
+		"resi",
+		"timer",
+		"countdown",
+		"sermon",
+		"stage display",
+		"propresenter",
+		"church"
+	],
+	"legacyIds": []
+}

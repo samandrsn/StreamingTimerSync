@@ -1,0 +1,20 @@
+# Streaming Timer Sync with Docker (Portainer, Arcane, Unraid, Synology, or `docker compose up -d`).
+# Open http://<host>:7374 afterwards and enter your Resi login on the Resi connection page.
+services:
+  streaming-timer-sync:
+    image: ghcr.io/samandrsn/streaming-timer-sync:latest
+    container_name: streaming-timer-sync
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-7374}:7374"
+    volumes:
+      - streaming-timer-sync-data:/data
+    environment:
+      TZ: ${TZ:-UTC}
+      # Optional: password-protect the settings pages (user name can be anything).
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Optional: fill in the Resi login on first start instead of in the web page.
+      RESI_EMAIL: ${RESI_EMAIL:-}
+      RESI_PASSWORD: ${RESI_PASSWORD:-}
+volumes:
+  streaming-timer-sync-data:

@@ -1,0 +1,17 @@
+{
+	"name": "streaming-timer-sync",
+	"version": "2.0.0",
+	"description": "Countdown clocks for stage displays from Resi decoder playback and event cues",
+	"type": "module",
+	"main": "src/index.js",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"start": "node src/index.js",
+		"dev": "node --watch src/index.js",
+		"mock": "node mock/mock-resi.js",
+		"test": "node --test test/*.test.js"
+	},
+	"license": "MIT"
+}

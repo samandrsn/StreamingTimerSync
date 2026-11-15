@@ -279,6 +279,30 @@ pre.log { margin: 0; max-height: 420px; overflow: auto; background: var(--bg); b
 .display-link a { color: inherit; }
 .display-link .screens { white-space: nowrap; }
 
+/* ---------- set cues (Live page) ---------- */
+.cue-panel { display: grid; gap: 14px; }
+.cue-panel-head { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.cue-panel-head h2 { margin-right: 4px; }
+.cue-event { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; min-width: 0; }
+.cue-event b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cue-change { margin-left: auto; font-size: 13px; color: var(--text-2); }
+.cue-panel-body { display: flex; align-items: flex-end; gap: 10px 14px; flex-wrap: wrap; }
+.cue-prefix { width: 110px; flex: none; }
+.cue-buttons { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 320px; }
+.cue-btn { min-height: 40px; }
+.cue-btn.pressed { background: var(--good); border-color: var(--good); color: #fff; }
+.cue-custom { display: flex; gap: 8px; flex: 0 1 300px; }
+.cue-custom input { min-width: 0; }
+.cue-panel-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; font-size: 13px; padding-top: 12px; border-top: 1px solid var(--line); }
+.cue-panel-foot .actions { gap: 10px; }
+
+.prefix-rules { display: grid; gap: 8px; }
+.prefix-rules:empty { display: none; }
+.prefix-rule { display: grid; grid-template-columns: 130px 130px minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.prefix-rule label { font-size: 12.5px; }
+.prefix-rule .pr-del { min-height: 40px; width: 40px; padding: 0; }
+@media (max-width: 760px) { .prefix-rule { grid-template-columns: 1fr 1fr auto; } .prefix-rule .pr-prefix-label { grid-column: 1 / 3; } }
+
 /* ---------- companion variables ---------- */
 #companion-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
 .vars { display: grid; gap: 0; }

@@ -24,6 +24,7 @@
 <symbol id="i-grid" viewBox="0 0 24 24"><rect class="ic" x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect class="ic" x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect class="ic" x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect class="ic" x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
 <symbol id="i-gear" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="3"/><path class="ic" d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
 <symbol id="i-x" viewBox="0 0 24 24"><path class="ic" d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24"><path class="ic" d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
 <symbol id="i-sync" viewBox="0 0 24 24"><path class="ic" d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path class="ic" d="M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2"/></symbol>
 </svg>
 <a class="skip" href="#main">Skip to content</a>
@@ -33,6 +34,7 @@
   <div id="conn" class="conn" role="status"><span>Connecting…</span></div>
   <div class="views">
     <a href="#live" class="view" data-view="live"><svg class="i"><use href="#i-clock"/></svg><span>Live</span></a>
+    <a href="#cueset" class="view" data-view="cueset"><svg class="i"><use href="#i-flag"/></svg><span>Cue setting</span></a>
     <a href="#companion" class="view" data-view="companion"><svg class="i"><use href="#i-grid"/></svg><span>Companion</span></a>
     <div class="nav-group">Configure</div>
     <a href="#venues" class="view" data-view="venues"><svg class="i"><use href="#i-campus"/></svg><span>Venues</span></a>
@@ -57,6 +59,62 @@
   <div id="blackout-banner" class="alert blackout-banner" role="status" hidden><b>All stage displays are black.</b> Companion variables still update. <button id="blackout-all-off" class="btn small strong">Bring screens back</button></div>
   <div id="live-grid" class="timers"></div>
   <p id="live-empty" class="empty" hidden>No venues yet. <a href="#venues">Add your first venue</a> to start a timer.</p>
+</section>
+
+<!-- ================= Cue setting ================= -->
+<section class="page" data-page="cueset" hidden>
+  <div class="page-head"><div>
+    <h1 class="page-title">Cue setting</h1>
+    <p class="page-lede">Add cues to the live Resi event, at its live point, the same way Studio does. Each cue is named the way your Cues page expects.</p>
+  </div></div>
+  <div class="stack wide">
+  <section id="cue-panel" class="card cue-panel" aria-labelledby="cue-panel-title">
+    <div class="cue-panel-head">
+      <h2 id="cue-panel-title">Set cues</h2>
+      <span id="cue-event" class="cue-event"></span>
+    </div>
+    <div class="cue-panel-body">
+      <label class="cue-prefix">Prefix<input id="cue-prefix" placeholder="Auto" autocomplete="off" aria-describedby="cue-prefix-hint" title="Blank uses the prefix for this time of day. Type one to use it instead, or - for none."></label>
+      <div id="cue-buttons" class="cue-buttons" aria-label="Set a cue now"></div>
+      <form id="cue-custom" class="cue-custom"><input id="cue-custom-name" placeholder="Other cue name" autocomplete="off" aria-label="Other cue name"><button class="btn">Set</button></form>
+    </div>
+    <div class="cue-panel-foot">
+      <span id="cue-prefix-hint" class="quiet">Cues land at the live point of the event, named like <b id="cue-example">9AM // MESSAGE END</b>.</span>
+      <span class="actions"><span id="cue-last" class="quiet"></span><button id="cue-undo" class="btn small ghost" disabled>Undo last cue</button></span>
+    </div>
+  </section>
+    <form id="cuewriter-form" class="card form" data-settings>
+      <div class="card-head"><div><h2>Which event</h2><p id="cw-preview" class="hint" style="margin:2px 0 0"></p></div><span id="cw-tag" class="tag"></span></div>
+      <p class="note">The buttons above and the Companion module’s <b>Set a cue in Resi now</b> action add cues to this event. A Companion button can also name its own event.</p>
+      <div class="row2">
+        <label>Which event<select name="cueWriter.mode">
+          <option value="auto">Find it by name each week</option>
+          <option value="event">Always use one event</option>
+        </select></label>
+        <label class="cw-auto">Event name<input name="cueWriter.pattern" placeholder="Sunday Services" autocomplete="off">
+          <span class="hint">Leave the date out, or write <code>{date}</code>: “Sunday Services” finds “11/15/2026 // Sunday Services” every week. The live one wins, then the next to start.</span></label>
+        <label class="cw-event">Event<select name="cueWriter.eventId"></select>
+          <span class="hint">Live and upcoming events first.</span></label>
+      </div>
+      <h3 class="subhead">Prefix</h3>
+      <p class="note">Put the service time before each cue name, so a cue set at 8:10 is <code>8AM // MESSAGE END</code> and one at 9:40 is <code>9:30AM // MESSAGE END</code>. Times are this server’s clock.</p>
+      <div id="prefix-rules" class="prefix-rules" aria-label="Prefixes by time of day"></div>
+      <div><button type="button" id="add-prefix-rule" class="btn small"><svg class="i"><use href="#i-plus"/></svg><span>Add a time range</span></button></div>
+      <div class="row2">
+        <label>Outside these times<input name="cueWriter.servicePrefix" placeholder="No prefix" autocomplete="off">
+          <span class="hint">The prefix when no range above matches. Blank sets just the cue name.</span></label>
+        <label>Between prefix and name<input name="cueWriter.separator" placeholder=" // " autocomplete="off">
+          <span class="hint"><code> // </code> gives <code>8AM // MESSAGE END</code>; <code>: </code> gives <code>8AM: MESSAGE END</code>.</span></label>
+      </div>
+      <p id="prefix-now" class="summary"></p>
+      <h3 class="subhead">Timing</h3>
+      <div class="row2">
+        <label>Cue timing offset (seconds)<input name="cueWriter.offsetSec" type="number" step="0.5">
+          <span class="hint">Where “now” lands. <b>−3</b> puts cues 3 seconds earlier, if they show up late in Studio.</span></label>
+      </div>
+      <div class="actions"><button class="btn strong">Save</button></div>
+    </form>
+  </div>
 </section>
 
 <!-- ================= Companion ================= -->

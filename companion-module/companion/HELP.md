@@ -41,6 +41,22 @@ The same fields exist for every venue with its key as a prefix, e.g. `$(streamin
 
 If you renamed the connection, replace `streaming-timer-sync` with your connection label.
 
+## Setting cues in Resi
+
+Buttons can add cues to the live Resi event, at its live point, the same way Studio does.
+
+- **Set a cue in Resi now**: pick the cue from the server's Cues page (or type any name; variables work), a prefix (blank uses the server's prefix for the time of day, `-` for none; `9AM` sets `9AM // MESSAGE END`), and the event: the server's event, or a specific one from the list (live events are marked).
+- **Undo the last cue set**: removes the last cue the server set, from any button or the dashboard.
+
+The server's event is chosen on its **Cue setting** page: by name each week (for example `Sunday Services`, whatever the date) or one specific event. Cues can only be set while that event is live. If the server has an admin password, enter it in this module's settings.
+
+| Variable | |
+|---|---|
+| `$(streaming-timer-sync:cue_event)` | The event cues go to |
+| `$(streaming-timer-sync:cue_event_live)` | `1` while it's live |
+| `$(streaming-timer-sync:last_cue)` | The last cue set, e.g. `9AM // MESSAGE END at 01:12:03.000` |
+| `$(streaming-timer-sync:cue_prefix)` | The prefix a cue set now gets, from the time ranges on the Cue setting page |
+
 ## Feedbacks
 
 - **Remaining at or below (minutes)**

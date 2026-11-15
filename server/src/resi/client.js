@@ -59,12 +59,18 @@ export class ResiClient {
 	}
 
 	/** GET JSON with one re-login on 401/403. Returns { status, body }. */
-	async getJson(url, { allowStatus = [] } = {}) {
+	async getJson(url, options = {}) {
+		return this.request(url, options)
+	}
+
+	/** Any request with one re-login on 401/403. `json` is sent as the body. Returns { status, body }. */
+	async request(url, { method = 'GET', json, allowStatus = [] } = {}) {
 		for (let attempt = 0; attempt < 2; attempt++) {
 			const headers = await this.authHeaders()
+			if (json !== undefined) headers['Content-Type'] = 'application/json'
 			let response
 			try {
-				response = await fetch(url, { headers, signal: AbortSignal.timeout(15000) })
+				response = await fetch(url, { method, headers, body: json === undefined ? undefined : JSON.stringify(json), signal: AbortSignal.timeout(15000) })
 			} catch (err) {
 				throw new ResiError(`Network error for ${url}: ${err.message}`)
 			}
@@ -97,6 +103,32 @@ export class ResiClient {
 			if (s.customerId) return s.customerId
 		}
 		throw new ResiError('Customer ID not found. Enter it on the Resi connection page.')
+	}
+
+	/** The account's events (recent, live and scheduled), as Studio lists them. */
+	async listEvents() {
+		const cid = await this.requireCustomerId()
+		const { body } = await this.getJson(`${this.base()}/api/v3/customers/${cid}/events`)
+		return Array.isArray(body) ? body : []
+	}
+
+	/** Where an event's cues live: its stream profile (the event's eventProfileId) and the event. */
+	eventCuesUrl(event) {
+		if (!event?.uuid || !event?.eventProfileId) throw new ResiError('This event has no stream profile, so cues can’t be set on it.')
+		return `${this.base()}/api_v2.svc/streamprofiles/${event.eventProfileId}/events/${event.uuid}/cues`
+	}
+
+	/** Add a cue, the same request Studio sends. `position` is "HH:MM:SS.mmm" from the start of the event. */
+	async createCue(event, { name, position }) {
+		await this.request(this.eventCuesUrl(event), { method: 'POST', json: { position, name, privateCue: false, user: this.resi.email || '' } })
+		// Studio's answer is empty; read the cues back to find the new one (for undo).
+		const { body } = await this.getJson(this.eventCuesUrl(event))
+		const cues = Array.isArray(body) ? body : []
+		return cues.filter((c) => c.name === name && c.position === position).at(-1) ?? null
+	}
+
+	async deleteCue(event, cueId) {
+		await this.request(`${this.eventCuesUrl(event)}/${encodeURIComponent(cueId)}`, { method: 'DELETE' })
 	}
 
 	async fetchDecoders(afterIso) {

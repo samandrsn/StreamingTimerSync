@@ -3,6 +3,7 @@
  * at http://localhost:9090 and use any email/password + customer id "mock".
  *
  * Add a cue live:  curl -X POST 'localhost:9090/mock/cue?event=E1&name=MESSAGE%20END&at=02:52:00'
+ * The dashboard's Set cues panel writes cues the way Studio does (POST / DELETE on an event's cues).
  */
 import { createServer } from 'node:http'
 
@@ -54,6 +55,28 @@ function decoderList() {
 	}))
 }
 
+// The event list Studio shows: Sunday is live (started so the main decoder is at the live point),
+// Saturday has finished, next Sunday is scheduled.
+const date = (offsetDays) => {
+	const d = new Date(Date.now() + offsetDays * 86400_000)
+	return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`
+}
+function eventList() {
+	const sundayStart = startedAt - (2 * 3600 + 15 * 60) * 1000
+	const ev = (uuid, name, start, hours) => ({ uuid, name, eventProfileId: PROFILE, startTime: new Date(start).toISOString(), stopAfter: new Date(start + hours * 3600_000).toISOString(), encoderName: 'Main Encoder' })
+	return [
+		ev(E1, `${date(0)} // Sunday Services`, sundayStart, 6),
+		ev(E2, `${date(-1)} // Saturday Service`, sundayStart - 20 * 3600_000, 2),
+		ev('aaaaaaaa-0000-0000-0000-000000000003', `${date(7)} // Sunday Services`, sundayStart + 7 * 86400_000, 6),
+	]
+}
+
+async function readJson(req) {
+	let data = ''
+	for await (const chunk of req) data += chunk
+	return data ? JSON.parse(data) : {}
+}
+
 function json(res, status, body) {
 	res.writeHead(status, { 'Content-Type': 'application/json' })
 	res.end(JSON.stringify(body))
@@ -77,9 +100,27 @@ createServer(async (req, res) => {
 	if (!authed) return json(res, 401, { message: 'unauthorized' })
 
 	if (/^\/api\/v3\/customers\/[^/]+\/monitors\/decoders$/.test(p)) return json(res, 200, decoderList())
+	if (/^\/api\/v3\/customers\/[^/]+\/events$/.test(p)) return json(res, 200, eventList())
 	let m = p.match(/^\/api\/v3\/customers\/[^/]+\/events\/([^/]+)$/)
 	if (m) return cues[m[1]] ? json(res, 200, { uuid: m[1], name: 'Event', eventProfileId: PROFILE }) : json(res, 404, {})
-	m = p.match(/^\/api_v2\.svc\/streamprofiles\/([^/]+)\/events\/([^/]+)\/cues$/)
-	if (m) return m[1] === PROFILE && cues[m[2]] ? json(res, 200, cues[m[2]]) : json(res, 404, { message: 'not found' })
+	m = p.match(/^\/api_v2\.svc\/streamprofiles\/([^/]+)\/events\/([^/]+)\/cues(?:\/([^/]+))?$/)
+	if (m) {
+		const list = m[1] === PROFILE ? cues[m[2]] : null
+		if (!list) return json(res, 404, { message: 'not found' })
+		if (req.method === 'POST') {
+			const { name, position } = await readJson(req)
+			list.push({ uuid: `w${Date.now()}`, name, position, privateCue: false, user: 'mock' })
+			res.writeHead(201)
+			return res.end()
+		}
+		if (req.method === 'DELETE' && m[3]) {
+			const i = list.findIndex((c) => c.uuid === m[3])
+			if (i < 0) return json(res, 404, { message: 'not found' })
+			list.splice(i, 1)
+			res.writeHead(204)
+			return res.end()
+		}
+		return json(res, 200, list)
+	}
 	json(res, 404, { message: 'not found' })
 }).listen(9090, () => console.log('Mock Resi on http://localhost:9090'))

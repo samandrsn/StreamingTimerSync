@@ -10,6 +10,7 @@ services:
     volumes:
       - streaming-timer-sync-data:/data
     environment:
+      # Your time zone, e.g. America/Chicago. Cue prefixes by time of day use it.
       TZ: ${TZ:-UTC}
       # Optional: password-protect the settings pages (user name can be anything).
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}

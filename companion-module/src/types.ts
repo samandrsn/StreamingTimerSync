@@ -1,5 +1,28 @@
 export type TimerState = 'offline' | 'no_event' | 'no_cues' | 'waiting' | 'counting' | 'overtime' | 'ended'
 
+/** A Resi event, for setting cues. */
+export interface CueEvent {
+	id: string
+	name: string
+	startTime: string | null
+	stopAfter: string | null
+	encoderName: string
+	live: boolean
+}
+
+/** GET /api/resi/events from the server. */
+export interface CueEventsResponse {
+	selected: CueEvent | null
+	reason: string | null
+	events: CueEvent[]
+	cueTypes: string[]
+	servicePrefix: string
+	/** The prefix a cue set now gets: the time-of-day rule, or the default. */
+	prefix: string
+	separator: string
+	last: { name: string; position: string; eventName: string } | null
+}
+
 /** One countdown per "count down to" cue type. */
 export interface TargetTimer {
 	name: string

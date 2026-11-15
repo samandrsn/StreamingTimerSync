@@ -31,6 +31,11 @@ export const DEFAULT_CONFIG = {
 		endedHoldMinutes: 5,
 		showOvertime: true,
 	},
+	// Setting cues in Resi live (see cue-writer.js). Which event: 'auto' finds it by name each
+	// week (pattern), 'event' uses one chosen event. offsetSec nudges where "now" lands.
+	// prefixRules: [{ from: '07:55', to: '09:15', prefix: '8AM' }] picks the prefix by the time of day
+	// (the server's time zone); servicePrefix is used outside every range. separator joins prefix and name.
+	cueWriter: { mode: 'auto', pattern: '', eventId: '', servicePrefix: '', prefixRules: [], separator: ' // ', offsetSec: 0 },
 	// Stage displays forced black: every campus, or by campus id. Not part of an export.
 	blackout: { all: false, campuses: [] },
 	campuses: [],

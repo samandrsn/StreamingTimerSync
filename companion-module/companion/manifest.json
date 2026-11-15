@@ -3,7 +3,7 @@
 	"name": "Streaming Timer Sync",
 	"shortname": "streaming-timer-sync",
 	"description": "Per-campus stage countdowns from a Streaming Timer Sync server (Resi decoder playback + event cues)",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/samandrsn/StreamingTimerSync.git",
 	"bugs": "https://github.com/samandrsn/StreamingTimerSync/issues",

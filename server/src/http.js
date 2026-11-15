@@ -42,7 +42,7 @@ function authorized(req, adminPassword) {
 	return decoded.slice(decoded.indexOf(':') + 1) === adminPassword
 }
 
-export function startHttp({ port, store, poller, client, pusher, logs, adminPassword }) {
+export function startHttp({ port, store, poller, client, pusher, cueWriter, logs, adminPassword }) {
 	const streams = new Set()
 	// Stage displays reload when this changes: on a new version, a restart, or the Live page's button.
 	let reloadAt = Date.now()
@@ -186,6 +186,31 @@ export function startHttp({ port, store, poller, client, pusher, logs, adminPass
 
 			if (p === '/api/diagnostics' && req.method === 'GET') return sendJson(res, 200, poller.diagnostics())
 			if (p === '/api/logs' && req.method === 'GET') return sendJson(res, 200, logs.slice(0, 300))
+
+			// Setting cues in Resi. The event list and what would be used; ?mode=&pattern=&eventId= previews a choice.
+			if (p === '/api/resi/events' && req.method === 'GET') {
+				const q = url.searchParams
+				const choice = q.has('mode') ? { mode: q.get('mode'), pattern: q.get('pattern') ?? '', eventId: q.get('eventId') ?? '' } : undefined
+				const overview = await cueWriter.overview(choice)
+				// Companion lists the cue names it can set.
+				return sendJson(res, 200, { ...overview, cueTypes: store.config.cues.types.map((t) => t.name), servicePrefix: store.config.cueWriter.servicePrefix })
+				// `prefix` is what a cue set now would get (time rule or default).
+			}
+			// Body { name, prefix?, eventId? }. Sets the cue at "now" in the live event.
+			if (p === '/api/cues/set' && req.method === 'POST') {
+				try {
+					return sendJson(res, 200, await cueWriter.setCue(await readBody(req)))
+				} catch (err) {
+					return sendJson(res, 409, { error: err.message })
+				}
+			}
+			if (p === '/api/cues/undo' && req.method === 'POST') {
+				try {
+					return sendJson(res, 200, await cueWriter.undo())
+				} catch (err) {
+					return sendJson(res, 409, { error: err.message })
+				}
+			}
 
 			if (p === '/api/test-cue' && req.method === 'POST') {
 				const { name, cues } = await readBody(req)

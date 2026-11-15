@@ -88,7 +88,7 @@ let campuses = []
 let decoders = []
 
 // ---------- views ----------
-const VIEWS = ['live', 'companion', 'venues', 'show', 'settings', 'diagnostics']
+const VIEWS = ['live', 'cueset', 'companion', 'venues', 'show', 'settings', 'diagnostics']
 // Pages that moved: old bookmarks still land in the right place.
 const MOVED = { connection: 'settings', backup: 'settings', campuses: 'venues', countdown: 'show', cues: 'show' }
 let currentView = null
@@ -108,9 +108,10 @@ function showView() {
 	$$('.view').forEach((a) => a.classList.toggle('on', a.dataset.view === name))
 	if (name === 'companion') renderCompanion(lastTimers)
 	if (name === 'venues') loadCampuses()
-	if (['show', 'settings'].includes(name)) loadSettings()
+	if (['show', 'settings', 'cueset'].includes(name)) loadSettings()
 	if (name === 'diagnostics') refreshDiagnostics()
 	if (name === 'settings') loadBackup()
+	if (name === 'cueset') loadCuePanel()
 }
 window.addEventListener('hashchange', showView)
 
@@ -512,6 +513,10 @@ async function loadSettings() {
 			else if (el.tagName !== 'SELECT' || el.name !== 'cues.start') el.value = v ?? ''
 		}
 	}
+	if (!$('[data-page="cueset"]').hidden) {
+		loadCueWriterSettings()
+		loadCuePanel()
+	}
 	renderShow(rowsFromSettings())
 	$('#synonyms').value = settings.cues.synonyms.map((g) => g.join(', ')).join('\n')
 	runCueTest()
@@ -837,7 +842,197 @@ $('#show-form').addEventListener('input', (e) => {
 	}, 250)
 })
 
+// ---------- setting cues in Resi ----------
+// The Cue setting page: the Set cues panel, and the card that chooses the event.
+let cueOverview = null
+const eventLabel = (e) => (e ? `${e.name || 'Unnamed event'}` : '')
+const eventWhen = (e) => {
+	if (!e?.startTime) return ''
+	const d = new Date(e.startTime)
+	return d.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+async function loadCuePanel() {
+	try {
+		cueOverview = await api('api/resi/events')
+	} catch (err) {
+		$('#cue-event').innerHTML = `<span class="urgent-text">${esc(err.message)}</span>`
+		return
+	}
+	const { selected, reason, cueTypes, last } = cueOverview
+	$('#cue-event').innerHTML = selected
+		? `<b>${esc(eventLabel(selected))}</b> ${selected.live ? '<span class="tag open">Live</span>' : `<span class="tag busy" title="${esc(reason || '')}">Not live</span>`}`
+		: `<span class="urgent-text">${esc(reason || 'No event chosen.')}</span>`
+	$('#cue-prefix').placeholder = cueOverview.prefix ? `Auto: ${cueOverview.prefix}` : 'Auto: none'
+	updateCueExample()
+	const buttons = cueTypes.map((n) => `<button type="button" class="btn cue-btn" data-cue="${esc(n)}">${esc(n)}</button>`).join('')
+	if ($('#cue-buttons').innerHTML !== buttons) $('#cue-buttons').innerHTML = buttons
+	const canSet = !!selected?.live
+	for (const b of $$('#cue-buttons .cue-btn, #cue-custom button')) b.disabled = !canSet
+	$('#cue-buttons').title = canSet ? '' : 'The event isn’t live, so there’s no “now” to put a cue at.'
+	renderLastCue(last)
+}
+function renderLastCue(last) {
+	$('#cue-last').textContent = last ? `Last: ${last.name} at ${last.position}` : ''
+	$('#cue-undo').disabled = !last
+}
+function updateCueExample() {
+	const typed = $('#cue-prefix').value.trim()
+	const p = typed === '-' ? '' : typed || cueOverview?.prefix || ''
+	const sep = cueOverview?.separator || ' // '
+	// The example uses a cue you'd set: the one after the start cue, if there is one.
+	const first = cueOverview?.cueTypes?.[1] ?? cueOverview?.cueTypes?.[0] ?? 'MESSAGE END'
+	$('#cue-example').textContent = p ? `${p}${sep}${first}` : first
+}
+$('#cue-prefix').addEventListener('input', updateCueExample)
+
+async function setCue(name, btn) {
+	if (!name.trim()) return
+	// One press, one cue: a quick double press doesn't set two.
+	const all = $$('#cue-buttons .cue-btn, #cue-custom button')
+	for (const b of all) b.disabled = true
+	btn?.classList.add('pressed')
+	try {
+		const r = await api('api/cues/set', { method: 'POST', body: { name, prefix: $('#cue-prefix').value } })
+		flash(`Cue set: ${r.name} at ${r.position}`)
+		renderLastCue({ name: r.name, position: r.position })
+	} catch (err) {
+		flash(err.message, true)
+	} finally {
+		setTimeout(() => {
+			btn?.classList.remove('pressed')
+			for (const b of all) b.disabled = !cueOverview?.selected?.live
+		}, 1200)
+	}
+}
+$('#cue-buttons').addEventListener('click', (e) => {
+	const btn = e.target.closest('.cue-btn')
+	if (btn) setCue(btn.dataset.cue, btn)
+})
+$('#cue-custom').addEventListener('submit', (e) => {
+	e.preventDefault()
+	const input = $('#cue-custom-name')
+	setCue(input.value, e.submitter).then(() => (input.value = ''))
+})
+$('#cue-undo').addEventListener('click', async (e) => {
+	const btn = e.currentTarget
+	btn.disabled = true
+	try {
+		const r = await api('api/cues/undo', { method: 'POST' })
+		flash(`Removed ${r.name} at ${r.position}`)
+	} catch (err) {
+		flash(err.message, true)
+	}
+	loadCuePanel()
+})
+
+// Settings card: pick the event automatically by name, or one event; preview what that picks.
+let cwTimer = null
+async function loadCueWriterSettings() {
+	const f = $('#cuewriter-form')
+	const saved = settings?.cueWriter ?? {}
+	try {
+		const o = await api('api/resi/events')
+		const opts = o.events.map((e) => `<option value="${esc(e.id)}">${e.live ? '● ' : ''}${esc(eventLabel(e))} · ${esc(eventWhen(e))}</option>`)
+		if (saved.eventId && !o.events.some((e) => e.id === saved.eventId)) opts.unshift(`<option value="${esc(saved.eventId)}">The event chosen before (not in the recent list)</option>`)
+		f['cueWriter.eventId'].innerHTML = `<option value="">Choose an event</option>${opts.join('')}`
+		f['cueWriter.eventId'].value = saved.eventId || ''
+	} catch (err) {
+		$('#cw-preview').textContent = err.message
+	}
+	renderPrefixRules(saved.prefixRules ?? [])
+	showCueWriterMode()
+	previewCueWriter()
+}
+function renderPrefixRules(rules) {
+	$('#prefix-rules').innerHTML = rules
+		.map(
+			(r, i) => `<div class="prefix-rule" role="group" aria-label="Time range ${i + 1}">
+				<label>From<input type="time" class="pr-from" value="${esc(r.from ?? '')}" required></label>
+				<label>To<input type="time" class="pr-to" value="${esc(r.to ?? '')}" required></label>
+				<label class="pr-prefix-label">Prefix<input class="pr-prefix" value="${esc(r.prefix ?? '')}" placeholder="8AM" autocomplete="off" required></label>
+				<button type="button" class="btn ghost danger small pr-del" aria-label="Remove this time range" title="Remove"><svg class="i"><use href="#i-x"/></svg></button>
+			</div>`,
+		)
+		.join('')
+	updatePrefixNow()
+}
+const readPrefixRules = () =>
+	$$('#prefix-rules .prefix-rule')
+		.map((row) => ({ from: $('.pr-from', row).value, to: $('.pr-to', row).value, prefix: $('.pr-prefix', row).value.trim() }))
+		.filter((r) => r.from && r.to && r.prefix)
+/** What a cue set right now would be called, from the ranges on screen (the browser's clock). */
+function updatePrefixNow() {
+	const f = $('#cuewriter-form')
+	const now = new Date()
+	const mins = now.getHours() * 60 + now.getMinutes()
+	const toMins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
+	const rule = readPrefixRules().find((r) => {
+		const a = toMins(r.from)
+		const b = toMins(r.to)
+		return a <= b ? mins >= a && mins < b : mins >= a || mins < b
+	})
+	const p = rule?.prefix ?? f['cueWriter.servicePrefix'].value.trim()
+	const sep = f['cueWriter.separator'].value || ' // '
+	const name = cueOverview?.cueTypes?.[1] ?? cueOverview?.cueTypes?.[0] ?? 'MESSAGE END'
+	const time = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+	$('#prefix-now').innerHTML = `A cue set now (${esc(time)}) would be <b>${esc(p ? `${p}${sep}${name}` : name)}</b>${rule ? ` <span class="quiet">(${esc(rule.from)}–${esc(rule.to)})</span>` : ''}.`
+}
+$('#add-prefix-rule').addEventListener('click', () => {
+	const rules = $$('#prefix-rules .prefix-rule').map((row) => ({ from: $('.pr-from', row).value, to: $('.pr-to', row).value, prefix: $('.pr-prefix', row).value }))
+	// Start the new range where the last one ended.
+	const last = rules.at(-1)
+	renderPrefixRules([...rules, { from: last?.to ?? '', to: '', prefix: '' }])
+	$('#prefix-rules .prefix-rule:last-child .pr-from').focus()
+})
+$('#prefix-rules').addEventListener('click', (e) => {
+	const del = e.target.closest('.pr-del')
+	if (!del) return
+	del.closest('.prefix-rule').remove()
+	updatePrefixNow()
+})
+function showCueWriterMode() {
+	const auto = $('#cuewriter-form')['cueWriter.mode'].value === 'auto'
+	$('.cw-auto').hidden = !auto
+	$('.cw-event').hidden = auto
+}
+async function previewCueWriter() {
+	const f = $('#cuewriter-form')
+	const q = new URLSearchParams({ mode: f['cueWriter.mode'].value, pattern: f['cueWriter.pattern'].value, eventId: f['cueWriter.eventId'].value })
+	try {
+		const o = await api(`api/resi/events?${q}`)
+		const tag = $('#cw-tag')
+		if (o.selected) {
+			$('#cw-preview').textContent = `Uses ${eventLabel(o.selected)} (${eventWhen(o.selected)})`
+			tag.className = `tag ${o.selected.live ? 'open' : ''}`
+			tag.textContent = o.selected.live ? 'Live' : 'Not live'
+		} else {
+			$('#cw-preview').textContent = o.reason || ''
+			tag.className = 'tag busy'
+			tag.textContent = 'No event'
+		}
+	} catch (err) {
+		$('#cw-preview').textContent = err.message
+	}
+}
+$('#cuewriter-form').addEventListener('input', () => {
+	updatePrefixNow()
+	showCueWriterMode()
+	clearTimeout(cwTimer)
+	cwTimer = setTimeout(previewCueWriter, 300)
+})
+$('#cuewriter-form').addEventListener('change', () => {
+	showCueWriterMode()
+	previewCueWriter()
+})
+
 // ---------- connection ----------
+$('#cuewriter-form').addEventListener('submit', (e) => {
+	e.preventDefault()
+	const patch = formPatch(e.target)
+	patch.cueWriter.prefixRules = readPrefixRules()
+	saveSettings(patch, 'Cue setting')
+})
 for (const [id, label] of [['#connection-form', 'Resi login'], ['#defaults-form', 'Stage displays'], ['#advanced-form', 'Advanced settings']]) {
 	$(id).addEventListener('submit', (e) => {
 		e.preventDefault()
@@ -973,3 +1168,5 @@ setInterval(pollStatus, 5000)
 setInterval(refreshDecoders, 15000)
 api('api/campuses').then((c) => (campuses = c))
 showView()
+
+setInterval(() => !$('[data-page="cueset"]').hidden && !document.hidden && loadCuePanel(), 30_000)

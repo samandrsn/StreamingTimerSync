@@ -2,6 +2,7 @@ import path from 'node:path'
 import { ConfigStore } from './config-store.js'
 import { startHttp, VERSION } from './http.js'
 import { Poller } from './poller.js'
+import { CueWriter } from './cue-writer.js'
 import { CompanionPusher } from './push.js'
 import { ResiClient } from './resi/client.js'
 
@@ -24,6 +25,7 @@ await store.load()
 const client = new ResiClient(() => store.config, log)
 const poller = new Poller({ store, client, log })
 const pusher = new CompanionPusher(store, log)
+const cueWriter = new CueWriter(store, client, log)
 poller.onTimers((timers) => pusher.push(timers))
 
 let lastResi = JSON.stringify(store.config.resi)
@@ -45,7 +47,7 @@ store.onChange((config) => {
 
 poller.start()
 log('info', `Streaming Timer Sync ${VERSION}`)
-startHttp({ port: PORT, store, poller, client, pusher, logs, adminPassword: process.env.ADMIN_PASSWORD || '' })
+startHttp({ port: PORT, store, poller, client, pusher, cueWriter, logs, adminPassword: process.env.ADMIN_PASSWORD || '' })
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
 	process.on(sig, () => {

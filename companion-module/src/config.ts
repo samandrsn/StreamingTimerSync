@@ -4,6 +4,7 @@ export interface ModuleConfig {
 	serverUrl: string
 	campus: string
 	pollIntervalMs: number
+	password: string
 }
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
@@ -29,6 +30,14 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			id: 'campus',
 			label: 'This venue (variable key from the server, e.g. north)',
 			tooltip: 'Fills the short variables like $(streaming-timer-sync:remaining). Per-venue variables are always available too.',
+			width: 8,
+			default: '',
+		},
+		{
+			type: 'textinput',
+			id: 'password',
+			label: 'Server admin password (only if the server has one)',
+			tooltip: 'Needed to set cues when the server is protected with ADMIN_PASSWORD. Countdowns never need it.',
 			width: 8,
 			default: '',
 		},

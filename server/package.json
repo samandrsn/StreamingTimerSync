@@ -1,6 +1,6 @@
 {
 	"name": "streaming-timer-sync",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"description": "Countdown clocks for stage displays from Resi decoder playback and event cues",
 	"type": "module",
 	"main": "src/index.js",

@@ -60,6 +60,10 @@ export function UpdateVariableDefinitions(self: ModuleInstance): void {
 		{ variableId: 'connected', name: 'Bridge connected (1/0)' },
 		{ variableId: 'resi_status', name: 'Bridge → Resi status' },
 		{ variableId: 'campus', name: 'This campus name' },
+		{ variableId: 'cue_event', name: 'Setting cues: event' },
+		{ variableId: 'cue_event_live', name: 'Setting cues: event is live (1/0)' },
+		{ variableId: 'last_cue', name: 'Setting cues: last cue set' },
+		{ variableId: 'cue_prefix', name: 'Setting cues: prefix right now (by time of day)' },
 	]
 	for (const f of FIELDS) defs.push({ variableId: f.suffix, name: `This campus - ${f.label}` })
 	for (const target of localTimer(self)?.targets ?? []) {
@@ -82,6 +86,10 @@ export function UpdateVariableValues(self: ModuleInstance): void {
 		connected: self.connected ? '1' : '0',
 		resi_status: self.resiStatus,
 		campus: local?.campusName ?? '',
+		cue_event: self.cueEvent?.name ?? '',
+		cue_event_live: self.cueEvent?.live ? '1' : '0',
+		last_cue: self.lastCue,
+		cue_prefix: self.cuePrefix,
 	}
 	for (const f of FIELDS) values[f.suffix] = f.getValue(local)
 	for (const target of local?.targets ?? []) {

@@ -12,6 +12,7 @@ Each venue shows how long is left until the next moment in your service: the end
 - **Your run of show**: put your cues in service order, give each an estimated length, and the clock counts through them.
 - **Known or estimated, always labelled**: a real cue gives a known time; until it exists, the clock counts to an estimate and says so.
 - **Forgiving cue names**: `9AM // Message Start`, `9:30 - msg begins` and `MESAGE START` all count as the same cue.
+- **Set cues live**: one press on the dashboard or a Stream Deck adds a correctly named cue to the live Resi event, with the service time as its prefix.
 - **Companion variables** for every venue and every cue, through the included Companion module.
 - **Blackout and reload** any venue's screens, or all of them, from the dashboard.
 - **Backups** of your setup, so a special event doesn't cost you your normal configuration.
@@ -70,6 +71,19 @@ The **Cues** page is your run of show: every cue in the order your service runs.
 - Lists the **phrases** it also matches and the words that rule it out.
 
 The summary at the top reads like the service: `MESSAGE START 38 min → MESSAGE END 6 min → RESPONSE 4:30 → STREAM END`. Below the list, **Cues in loaded events** shows every cue in the events on your decoders and what each one counts as, updating as you type, and **Try a cue name** tests any name.
+
+## Setting cues live
+
+<p align="center"><img src="docs/images/cue-setting.png" alt="The Cue setting page: buttons to set each cue in the live event, which event they go to, and prefixes by time of day"></p>
+
+Cues are usually typed by hand in Studio during the service. The **Cue setting** page, and the Companion module's **Set a cue in Resi now** action, add them for you instead: at the live point of the event, the same way Studio does, named the way your Cues page expects.
+
+- **Which event**: find it by name each week (`Sunday Services` finds `11/15/2026 // Sunday Services`, whatever the date; the live one wins, then the next to start), or always use one event. A Companion button can also name its own event.
+- **Prefix by time of day**: time ranges choose the prefix, for example 7:55–9:15 → `8AM` and 9:25–11:00 → `9:30AM`, with a prefix for outside every range. The separator is yours too: ` // ` gives `8AM // MESSAGE END`, `: ` gives `8AM: MESSAGE END`. A prefix typed on the button wins (`-` for none). Times use the server's clock, so set `TZ` in Docker.
+- **Undo last cue** removes the last cue set, from the dashboard or any button.
+- Cues can only be set while the event is live. **Cue timing offset** nudges where "now" lands if cues show up a few seconds off in Studio.
+
+In Companion, `$(streaming-timer-sync:cue_event)`, `cue_event_live`, `cue_prefix` and `last_cue` show the event, whether it's live, the prefix right now and the last cue set. If the server has an `ADMIN_PASSWORD`, enter it in the module's settings.
 
 ## How the clock works
 
@@ -146,6 +160,9 @@ On the Live page, **Black out** on a venue, or **Black out all screens**, makes 
 | `GET /api/stream` | Server-sent events, 4 times a second |
 | `GET`/`PUT /api/blackout` | `{ "all": true }` or `{ "campusId": "…", "on": true }` |
 | `POST /api/displays/reload` | Reload every stage display, or one venue's with `{ "slug": "north" }` |
+| `GET /api/resi/events` | Resi events for setting cues, the one in use, and the prefix right now |
+| `POST /api/cues/set` | Set a cue now: `{ "name": "MESSAGE END", "prefix": "9AM", "eventId": "…" }` (prefix and event optional) |
+| `POST /api/cues/undo` | Remove the last cue set |
 | `GET /api/config/export` | Setup file download |
 | `POST /api/config/import` | `{ "config": <file>, "parts": ["settings", "campuses"] }` |
 | `POST /api/config/undo` | Put back the setup from before the last import |
@@ -177,6 +194,8 @@ These are the endpoints the Resi Studio web app uses. Resi doesn't publish them 
 - `GET /api_v2.svc/streamprofiles/{profileId}/events/{eventId}/cues`: event cues
 - `GET /api/v3/customers/{cid}/contentdestinations/{id}/cues`: web event cues (fallback)
 - `GET /api/v3/customers/{cid}/events/{eventId}`: to find the event's stream profile
+- `GET /api/v3/customers/{cid}/events`: the event list, for setting cues
+- `POST` and `DELETE /api_v2.svc/streamprofiles/{profileId}/events/{eventId}/cues[/{cueId}]`: setting and removing a cue, as Studio does
 
 An event's stream profile isn't in the decoder data, so the server looks for it: profiles that worked before, then ones the event references, then every profile on the account. If that ever fails, copy the cues URL from your browser's developer tools (Studio → event → cues, Network tab) into **Settings → Advanced → Cue URL template**, with `{eventId}` in place of the event ID.
 
